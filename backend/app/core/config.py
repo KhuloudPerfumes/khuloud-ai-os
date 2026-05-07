@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://qdrant:6333"
     ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "llama3.1:8b"
+    product_source_url: str = "https://khuloudperfumes.com"
+    image_generation_provider: str = "auto"
+    gemini_api_key: str | None = None
 
     founder_email: str = "founder@khuloud.local"
     smtp_host: str | None = None

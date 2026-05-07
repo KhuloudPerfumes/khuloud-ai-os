@@ -101,6 +101,15 @@ export type Asset = {
   created_at: string;
 };
 
+export type ProductSource = {
+  title: string;
+  handle: string;
+  url: string;
+  description: string;
+  tags: string[];
+  images: Array<{ src: string; alt: string }>;
+};
+
 export type Bootstrap = {
   bots: Bot[];
   channels: Channel[];
@@ -182,15 +191,58 @@ export async function generateCloudBotReply(payload: {
 }
 
 export async function generateVisualAsset(prompt: string, title = "Campaign concept board", channelKey = "founder-command") {
+  const enrichedPrompt = await enrichPromptWithProductSource(prompt);
   const response = await fetchWithTimeout(`${API_BASE}/api/assets/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, title, created_by: "creative_director", channel_key: channelKey })
+    body: JSON.stringify({ prompt: enrichedPrompt, title, created_by: "creative_director", channel_key: channelKey })
   }, 120000);
   if (!response.ok) {
     throw new Error("Image generation failed");
   }
   return response.json();
+}
+
+export async function getProductSource() {
+  const response = await fetchWithTimeout("/api/product-source", { cache: "no-store" }, 20000);
+  if (!response.ok) {
+    throw new Error("Product source unavailable");
+  }
+  return response.json() as Promise<{ sourceUrl: string; count: number; products: ProductSource[] }>;
+}
+
+async function enrichPromptWithProductSource(prompt: string) {
+  try {
+    const catalog = await getProductSource();
+    const relevant = selectRelevantProducts(prompt, catalog.products).slice(0, 4);
+    if (!relevant.length) {
+      return prompt;
+    }
+    const context = relevant.map((product) => {
+      const images = product.images.slice(0, 4).map((image) => image.src).join(", ");
+      return `Product: ${product.title}\nURL: ${product.url}\nDescription: ${product.description.slice(0, 500)}\nReference images: ${images}`;
+    }).join("\n\n");
+    return `${prompt}\n\nUse actual Khuloud product source context from ${catalog.sourceUrl}. Preserve the referenced product identity, bottle/packaging look, and luxury cues. Product context:\n${context}`;
+  } catch {
+    return prompt;
+  }
+}
+
+function selectRelevantProducts(prompt: string, products: ProductSource[]) {
+  const words = new Set(prompt.toLowerCase().match(/[a-z0-9]+/g)?.filter((word) => word.length > 2) || []);
+  const scored = products.map((product) => {
+    const haystack = [product.title, product.handle, product.description, product.tags.join(" ")].join(" ").toLowerCase();
+    let score = 0;
+    words.forEach((word) => {
+      if (product.title.toLowerCase().includes(word)) score += 3;
+      if (haystack.includes(word)) score += 1;
+    });
+    return { product, score };
+  }).filter((item) => item.score > 0);
+  if (!scored.length) {
+    return products.slice(0, 4);
+  }
+  return scored.sort((a, b) => b.score - a.score).map((item) => item.product);
 }
 
 export async function decideApproval(id: string, decision: "approve" | "reject", founderNote: string) {

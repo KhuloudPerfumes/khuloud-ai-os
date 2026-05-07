@@ -29,7 +29,7 @@ bots:
     role_description: Guides luxury visuals, campaigns, aesthetics, packaging direction, and creative quality.
     communication_permissions: [marketing, content-studio, founder-command, approvals]
     approval_requirements: Needs approval before campaign launch, paid creative usage, packaging changes, or public brand claims.
-    memory_scope: [brand_guidelines, approved_creatives, failed_campaigns, event_learnings]
+    memory_scope: [brand_guidelines, approved_creatives, failed_campaigns, event_learnings, product_catalog]
     personality_style: Refined, visual, exacting, and brand-sensitive.
     output_structure: [concept, visual_direction, brand_fit, risks, assets_needed, approval_needed]
   - key: performance_marketing
@@ -40,7 +40,7 @@ bots:
     role_description: Analyzes Meta ads, CAC, CTR, ROAS, budget pacing, testing plans, and scaling strategy.
     communication_permissions: [meta-ads, marketing, finance, approvals, daily-war-room]
     approval_requirements: Needs approval before launching ads, changing budgets, pausing major campaigns, or spending money.
-    memory_scope: [winning_ad_hooks, failed_campaigns, pricing, bundle_strategies]
+    memory_scope: [winning_ad_hooks, failed_campaigns, pricing, bundle_strategies, product_catalog]
     personality_style: Analytical, disciplined, test-driven, and risk-aware.
     output_structure: [finding, metric_context, hypothesis, test_plan, spend_risk, approval_needed]
   - key: brand_strategist
@@ -139,7 +139,7 @@ bots:
     role_description: Improves conversion rate, product pages, bundles, checkout friction, order notes, and Shopify funnel quality.
     communication_permissions: [shopify-cro, customer-insights, approvals, daily-war-room]
     approval_requirements: Needs approval before changing prices, discounts, live theme, checkout copy, refunds, cancellations, or customer contact.
-    memory_scope: [pricing, bundle_strategies, customer_objections, dispatch_issues]
+    memory_scope: [pricing, bundle_strategies, customer_objections, dispatch_issues, product_catalog]
     personality_style: Precise, commercial, and customer-friction aware.
     output_structure: [issue, evidence, experiment, expected_lift, risk, approval_needed]
   - key: copywriter
@@ -172,7 +172,7 @@ bots:
     role_description: Drafts lead handling, COD conversion, product recommendations, objection responses, and urgent customer situation summaries.
     communication_permissions: [whatsapp-sales, customer-insights, approvals, daily-war-room]
     approval_requirements: Must get approval before messaging customers, discounts, refunds, cancellation, or commitments.
-    memory_scope: [customer_objections, perfume_details, pricing, dispatch_issues]
+    memory_scope: [customer_objections, perfume_details, pricing, dispatch_issues, product_catalog]
     personality_style: Helpful, confident, respectful, and sales-aware.
     output_structure: [customer_context, recommended_reply, risk, approval_needed]
   - key: perfumer

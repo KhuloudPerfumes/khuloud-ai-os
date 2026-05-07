@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.db import SessionLocal, init_db
-from app.routers import approvals, assets, bots, bootstrap, chat, health, operations, shopify, tasks
+from app.routers import approvals, assets, bots, bootstrap, chat, health, operations, products, shopify, tasks
 from app.seed import seed_system
 
 
@@ -41,6 +41,7 @@ app.include_router(assets.router)
 app.include_router(bots.router)
 app.include_router(shopify.router)
 app.include_router(operations.router)
+app.include_router(products.router)
 
 
 @app.get("/")

@@ -11,8 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import ChatMessage, GeneratedAsset
+from app.core.config import get_settings
 from app.services.logging import log_action
 from app.services.memory import add_memory
+from app.services.product_catalog import fetch_product_catalog, product_context, select_relevant_products, sync_products_to_memory
 from app.services.realtime import manager
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
@@ -27,6 +29,17 @@ class AssetRequest(BaseModel):
 
 @router.post("/generate")
 async def generate_asset(payload: AssetRequest, db: Session = Depends(get_db)) -> dict:
+    settings = get_settings()
+    source_products = []
+    source_context = "No product catalog context available."
+    try:
+        products = await fetch_product_catalog(settings.product_source_url)
+        sync_products_to_memory(db, products, settings.product_source_url)
+        source_products = select_relevant_products(payload.prompt, products)
+        source_context = product_context(source_products)
+    except Exception as exc:
+        source_context = f"Product catalog could not be loaded from {settings.product_source_url}: {exc}"
+
     await _create_and_broadcast_message(
         db,
         channel_key=payload.channel_key,
@@ -43,7 +56,11 @@ async def generate_asset(payload: AssetRequest, db: Session = Depends(get_db)) -
         channel_key=payload.channel_key,
         sender_key="creative_director",
         sender_name="Creative Director Bot",
-        body=f"Building the image direction now: {payload.prompt}",
+        body=(
+            f"Building the image direction now: {payload.prompt}\n\n"
+            f"Product source: {settings.product_source_url}\n"
+            f"Reference products found: {', '.join(product.title for product in source_products) if source_products else 'none'}"
+        ),
     )
     await _create_and_broadcast_message(
         db,
@@ -60,11 +77,23 @@ async def generate_asset(payload: AssetRequest, db: Session = Depends(get_db)) -
         body="Preparing a separate product board so the output can be reviewed for product-page hero, bundle card, and WhatsApp recommendation use.",
     )
 
+    campaign_prompt = (
+        f"Luxury perfume campaign board for KHULOUD Perfumes. {payload.prompt}.\n"
+        f"Use these actual Khuloud product references and product image URLs as source inspiration:\n{source_context}\n"
+        "Preserve the product identity, bottle silhouette, label mood, and luxury cues. Black luxury background, deep purple shadows, gold highlights, editorial product photography, no UI, no text overlays, high-end advertising visual."
+    )
+    product_prompt = (
+        f"Individual product board image for KHULOUD Perfumes. {payload.prompt}.\n"
+        f"Use these actual Khuloud product references and product image URLs as source inspiration:\n{source_context}\n"
+        "Preserve the product identity, bottle silhouette, label mood, and luxury cues. Centered product, clean product photography, no UI, no text overlays."
+    )
     campaign_image = await _generated_bitmap(
-        f"Luxury perfume campaign board for KHULOUD Perfumes. {payload.prompt}. Black luxury background, deep purple shadows, gold highlights, premium perfume bottle, citrus notes if relevant, editorial product photography, no UI, no text overlays, high-end advertising visual."
+        campaign_prompt,
+        source_products,
     )
     product_image = await _generated_bitmap(
-        f"Individual product board image for one luxury perfume bottle from KHULOUD Perfumes. {payload.prompt}. Centered black glass perfume bottle, gold atomizer, premium label, citrus peel or fragrance ingredients, clean product photography, no UI, no text overlays."
+        product_prompt,
+        source_products,
     )
     campaign_visual = campaign_image or _campaign_svg(payload.title, payload.prompt)
     product_visual = product_image or _product_board_svg(payload.title, payload.prompt)
@@ -87,7 +116,13 @@ async def generate_asset(payload: AssetRequest, db: Session = Depends(get_db)) -
         db,
         scope="approved_creatives",
         title=f"Generated visual board: {payload.title}",
-        content=f"Prompt: {payload.prompt}\nCampaign board: {asset.id}\nProduct board: {product_asset.id}",
+        content=(
+            f"Prompt: {payload.prompt}\n"
+            f"Product source: {settings.product_source_url}\n"
+            f"Reference products: {', '.join(product.title for product in source_products)}\n"
+            f"Reference images: {', '.join(image.src for product in source_products for image in product.images[:2])}\n"
+            f"Campaign board: {asset.id}\nProduct board: {product_asset.id}"
+        ),
         created_by=payload.created_by,
         source="visual_generator",
     )
@@ -100,6 +135,8 @@ async def generate_asset(payload: AssetRequest, db: Session = Depends(get_db)) -
         sender_type="bot",
         body=(
             f"Generated visuals for {payload.title}.\n\n"
+            f"Product source used: {settings.product_source_url}\n"
+            f"Reference products: {', '.join(product.title for product in source_products) if source_products else 'No matching product source found'}.\n\n"
             "Campaign image is embedded below for immediate review.\n"
             "A separate individual product board image was also created and saved in Generated Visuals.\n\n"
             "You can reply in this chat with changes like: make it more citrus, change bottle color, add Arabic luxury cues, or create a Meta ad version."
@@ -196,7 +233,10 @@ async def _create_and_broadcast_message(
     return message
 
 
-async def _generated_bitmap(prompt: str) -> str | None:
+async def _generated_bitmap(prompt: str, source_products: list | None = None) -> str | None:
+    gemini_image = await _gemini_bitmap(prompt, source_products or [])
+    if gemini_image:
+        return gemini_image
     url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=1280&height=720&model=flux&nologo=true&private=true&seed={abs(hash(prompt)) % 1000000}"
     try:
         async with httpx.AsyncClient(timeout=90, follow_redirects=True) as client:
@@ -207,6 +247,56 @@ async def _generated_bitmap(prompt: str) -> str | None:
                 return None
             encoded = base64.b64encode(response.content).decode("ascii")
             return f"data:{content_type};base64,{encoded}"
+    except Exception:
+        return None
+
+
+async def _gemini_bitmap(prompt: str, source_products: list) -> str | None:
+    settings = get_settings()
+    if settings.image_generation_provider.lower() not in {"gemini", "nanobanana", "nano-banana"}:
+        return None
+    if not settings.gemini_api_key:
+        return None
+    parts: list[dict] = [{"text": prompt}]
+    for product in source_products[:2]:
+        for image in product.images[:2]:
+            encoded = await _download_image_as_inline_data(image.src)
+            if encoded:
+                parts.append(encoded)
+    endpoint = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"gemini-2.5-flash-image:generateContent?key={settings.gemini_api_key}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(endpoint, json={"contents": [{"parts": parts}]})
+            response.raise_for_status()
+            data = response.json()
+        for candidate in data.get("candidates", []):
+            for part in candidate.get("content", {}).get("parts", []):
+                inline = part.get("inlineData") or part.get("inline_data")
+                if inline and inline.get("data"):
+                    mime_type = inline.get("mimeType") or inline.get("mime_type") or "image/png"
+                    return f"data:{mime_type};base64,{inline['data']}"
+    except Exception:
+        return None
+    return None
+
+
+async def _download_image_as_inline_data(url: str) -> dict | None:
+    try:
+        async with httpx.AsyncClient(timeout=25, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "image/png")
+            if not content_type.startswith("image/"):
+                return None
+            return {
+                "inlineData": {
+                    "mimeType": content_type,
+                    "data": base64.b64encode(response.content).decode("ascii"),
+                }
+            }
     except Exception:
         return None
 

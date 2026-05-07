@@ -30,11 +30,54 @@ export async function POST(request: Request) {
   const user = [
     `Founder message: ${payload.userText}`,
     payload.existingBody ? `Current backend draft to improve: ${payload.existingBody}` : "",
+    await productCatalogContext(payload.userText),
     "Give the best expert response this bot should send in the company chat."
   ].filter(Boolean).join("\n\n");
 
   const ai = await callPollinations(system, user);
   return NextResponse.json({ body: ai || localFallback(payload) });
+}
+
+async function productCatalogContext(userText: string) {
+  try {
+    const base = process.env.KHULOUD_PRODUCT_SOURCE_URL || "https://khuloudperfumes.com";
+    const response = await fetch(`${base.replace(/\/$/, "")}/products.json?limit=250`, {
+      next: { revalidate: 900 },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!response.ok) {
+      return "";
+    }
+    const data = await response.json();
+    const products = (data.products || []).map((product: any) => ({
+      title: product.title,
+      handle: product.handle,
+      url: `${base.replace(/\/$/, "")}/products/${product.handle}`,
+      description: String(product.body_html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+      images: (product.images || []).map((image: any) => image.src).filter(Boolean)
+    }));
+    const words = new Set(userText.toLowerCase().match(/[a-z0-9]+/g)?.filter((word) => word.length > 2) || []);
+    const relevant = products
+      .map((product: any) => {
+        const haystack = [product.title, product.handle, product.description].join(" ").toLowerCase();
+        let score = 0;
+        words.forEach((word) => {
+          if (String(product.title).toLowerCase().includes(word)) score += 3;
+          if (haystack.includes(word)) score += 1;
+        });
+        return { product, score };
+      })
+      .filter((item: any) => item.score > 0)
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, 4)
+      .map((item: any) => item.product);
+    const selected = relevant.length ? relevant : products.slice(0, 4);
+    return `Khuloud product catalog context from ${base}:\n${selected.map((product: any) => (
+      `Product: ${product.title}\nURL: ${product.url}\nDescription: ${product.description.slice(0, 420)}\nImages: ${product.images.slice(0, 4).join(", ")}`
+    )).join("\n\n")}`;
+  } catch {
+    return "";
+  }
 }
 
 async function callPollinations(system: string, user: string) {
