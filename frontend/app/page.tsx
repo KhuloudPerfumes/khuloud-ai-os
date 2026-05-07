@@ -109,6 +109,34 @@ const fallback: Bootstrap = {
   dashboard: { active_bots: 5, configured_bots: 25, pending_approvals: 0, open_tasks: 0, health: "starting" }
 };
 
+const visualGenerationTerms = [
+  "image",
+  "images",
+  "visual",
+  "visuals",
+  "picture",
+  "pictures",
+  "photo",
+  "photos",
+  "render",
+  "renders",
+  "mockup",
+  "mockups",
+  "product board",
+  "campaign board",
+  "poster",
+  "product shot",
+  "ad creative",
+  "creative asset"
+];
+
+const visualActionTerms = ["generate", "create", "make", "design", "produce", "build", "give me", "i need", "i want", "show me"];
+
+function requestsVisualGeneration(text: string) {
+  const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+  return visualGenerationTerms.some((term) => normalized.includes(term)) && visualActionTerms.some((term) => normalized.includes(term));
+}
+
 export default function Home() {
   const [data, setData] = useState<Bootstrap>(fallback);
   const [activeChannel, setActiveChannel] = useState("founder-command");
@@ -229,7 +257,7 @@ export default function Home() {
       const response = directMode
         ? await sendDirectBotMessage(activeChannel, selectedBot, body)
         : await sendFounderMessage(activeChannel, body);
-      const shouldGenerateVisual = response.bot_messages.some((message) => message.metadata?.auto_visual_request);
+      const shouldGenerateVisual = requestsVisualGeneration(body) || response.bot_messages.some((message) => message.metadata?.auto_visual_request);
       if (shouldGenerateVisual) {
         setGeneratingAsset(true);
         setOperationStatus("Image request detected. Generating visual boards automatically...");
