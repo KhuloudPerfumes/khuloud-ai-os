@@ -12,12 +12,15 @@ from app.seed import seed_system
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    init_db()
-    db = SessionLocal()
     try:
-        seed_system(db, settings.config_dir)
-    finally:
-        db.close()
+        init_db()
+        db = SessionLocal()
+        try:
+            seed_system(db, settings.config_dir)
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"Startup warning: database initialization skipped: {exc}", flush=True)
     yield
 
 
