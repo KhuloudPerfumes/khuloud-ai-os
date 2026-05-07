@@ -2,7 +2,9 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   (typeof window === "undefined"
     ? "http://backend:8000"
-    : `${window.location.protocol}//${window.location.hostname}:8000`);
+    : window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      ? `${window.location.protocol}//${window.location.hostname}:8000`
+      : "https://khuloud-ai-os-backend.onrender.com");
 
 export const DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "local";
 
