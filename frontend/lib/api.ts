@@ -53,6 +53,7 @@ export type Message = {
     auto_visual_request?: boolean;
     task_id?: string;
     queue?: string;
+    cloud_ai?: boolean;
   };
   created_at: string;
 };
@@ -160,6 +161,24 @@ export async function sendDirectBotMessage(channelKey: string, botKey: string, b
     throw new Error("Direct bot message failed");
   }
   return response.json();
+}
+
+export async function generateCloudBotReply(payload: {
+  botKey: string;
+  botName: string;
+  department?: string;
+  userText: string;
+  existingBody?: string;
+}) {
+  const response = await fetchWithTimeout("/api/cloud-ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }, 24000);
+  if (!response.ok) {
+    throw new Error("Cloud AI reply failed");
+  }
+  return response.json() as Promise<{ body: string }>;
 }
 
 export async function generateVisualAsset(prompt: string, title = "Campaign concept board", channelKey = "founder-command") {

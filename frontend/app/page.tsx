@@ -33,6 +33,7 @@ import {
   Task,
   decideApproval,
   generateDailyCEOReport,
+  generateCloudBotReply,
   generateVisualAsset,
   getBootstrap,
   getHealth,
@@ -272,6 +273,38 @@ export default function Home() {
         }
       }
       await refresh();
+      const enhanceTargets = response.bot_messages.filter((message) => message.sender_key !== "system" && !message.metadata?.assets);
+      if (enhanceTargets.length) {
+        setOperationStatus("Cloud AI employees are refining their responses...");
+        const enhanced = await Promise.allSettled(
+          enhanceTargets.map((message) => {
+            const bot = data.bots.find((item) => item.key === message.sender_key);
+            return generateCloudBotReply({
+              botKey: message.sender_key,
+              botName: message.sender_name,
+              department: bot?.department,
+              userText: body,
+              existingBody: message.body
+            }).then((reply) => ({ id: message.id, body: reply.body }));
+          })
+        );
+        const replacements = new Map(
+          enhanced
+            .filter((result): result is PromiseFulfilledResult<{ id: string; body: string }> => result.status === "fulfilled" && Boolean(result.value.body))
+            .map((result) => [result.value.id, result.value.body])
+        );
+        if (replacements.size) {
+          setData((current) => ({
+            ...current,
+            messages: current.messages.map((message) =>
+              replacements.has(message.id)
+                ? { ...message, body: replacements.get(message.id) || message.body, metadata: { ...message.metadata, cloud_ai: true } }
+                : message
+            )
+          }));
+          setOperationStatus("Cloud AI responses are active.");
+        }
+      }
     } catch {
       setData((current) => ({
         ...current,
