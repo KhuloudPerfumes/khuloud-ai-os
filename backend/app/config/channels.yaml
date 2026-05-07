@@ -1,0 +1,91 @@
+channels:
+  - key: founder-command
+    name: founder-command
+    department: Executive
+    purpose: Founder command center, approvals, directives, and top-level company decisions.
+    allowed_bots: [founder_proxy, ceo, creative_director, performance_marketing, shopify_cro, whatsapp_sales]
+  - key: ceo-orchestrator
+    name: ceo-orchestrator
+    department: Executive
+    purpose: CEO routing, coordination, conflict detection, and operating cadence.
+    allowed_bots: [ceo, founder_proxy]
+  - key: daily-war-room
+    name: daily-war-room
+    department: Company
+    purpose: Daily alerts, urgent blockers, business summary, and cross-functional updates.
+    allowed_bots: [ceo, performance_marketing, shopify_cro, whatsapp_sales, operations_general, data_analyst]
+  - key: marketing
+    name: marketing
+    department: Growth
+    purpose: Brand, campaigns, strategy, offers, and go-to-market coordination.
+    allowed_bots: [ceo, creative_director, performance_marketing, brand_strategist, content_director, pr_collaborations]
+  - key: content-studio
+    name: content-studio
+    department: Content
+    purpose: Scripts, video direction, UGC, hooks, copy, and creative production.
+    allowed_bots: [creative_director, content_director, video_editor, ugc_director, hook_specialist, copywriter]
+  - key: meta-ads
+    name: meta-ads
+    department: Growth
+    purpose: Meta ad analysis, spend recommendations, tests, and scaling strategy.
+    allowed_bots: [performance_marketing, hook_specialist, data_analyst, finance_controller]
+  - key: shopify-cro
+    name: shopify-cro
+    department: Ecommerce
+    purpose: Shopify conversion, product page improvements, bundles, checkout friction, and funnel alerts.
+    allowed_bots: [shopify_cro, ceo, data_analyst, copywriter]
+  - key: whatsapp-sales
+    name: whatsapp-sales
+    department: Sales
+    purpose: WhatsApp lead handling, COD conversion drafts, objections, and customer urgency.
+    allowed_bots: [whatsapp_sales, ceo, community_manager]
+  - key: perfume-rnd
+    name: perfume-rnd
+    department: R&D
+    purpose: Fragrance development, materials, accords, suppliers, and formula notes.
+    allowed_bots: [perfumer, raw_material_sourcing, packaging_engineer]
+  - key: operations
+    name: operations
+    department: Operations
+    purpose: Dispatch, fulfillment, service reliability, SOPs, and operational tracking.
+    allowed_bots: [operations_general, qc, raw_material_sourcing, ceo]
+  - key: inventory-qc
+    name: inventory-qc
+    department: Operations
+    purpose: Inventory alerts, QC checks, batch consistency, packaging defects, and stock health.
+    allowed_bots: [operations_general, qc, packaging_engineer]
+  - key: finance
+    name: finance
+    department: Finance
+    purpose: Margins, ROI, cash discipline, budget guardrails, and profitability.
+    allowed_bots: [finance_controller, performance_marketing, data_analyst]
+  - key: offline-events
+    name: offline-events
+    department: Offline
+    purpose: Popups, stalls, offline retail experiments, event design, and field learnings.
+    allowed_bots: [event_experience, creative_director, community_manager]
+  - key: customer-insights
+    name: customer-insights
+    department: Customer
+    purpose: Customer objections, feedback, sentiment, product learnings, and support themes.
+    allowed_bots: [whatsapp_sales, community_manager, retention, shopify_cro, data_analyst]
+  - key: competitor-intel
+    name: competitor-intel
+    department: Research
+    purpose: Competitor pricing, campaigns, positioning, product movement, and market analysis.
+    allowed_bots: [competitor_intelligence, trend_research, brand_strategist, pr_collaborations]
+  - key: approvals
+    name: approvals
+    department: Executive
+    purpose: Founder approval queue for high-risk or irreversible actions.
+    allowed_bots: [ceo, founder_proxy, creative_director, performance_marketing, shopify_cro, whatsapp_sales]
+  - key: rejected-ideas
+    name: rejected-ideas
+    department: Archive
+    purpose: Rejected ideas, reasons, learnings, and future reference.
+    allowed_bots: [ceo, founder_proxy, creative_director, performance_marketing, shopify_cro]
+  - key: weekly-review
+    name: weekly-review
+    department: Company
+    purpose: Weekly executive report, unresolved issues, decisions, learnings, and next priorities.
+    allowed_bots: [ceo, finance_controller, data_analyst, competitor_intelligence]

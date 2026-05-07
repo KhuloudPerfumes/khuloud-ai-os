@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: khuloud-ai-os-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: cloud-free
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        value: ""
+      - key: QDRANT_URL
+        value: ""
+      - key: OLLAMA_BASE_URL
+        value: ""
+      - key: OLLAMA_MODEL
+        value: local-disabled
+      - key: LOCAL_AUTH_USERNAME
+        value: founder
+      - key: LOCAL_AUTH_PASSWORD
+        sync: false
+      - key: SHOPIFY_WEBHOOK_SECRET
+        sync: false
