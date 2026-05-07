@@ -79,9 +79,15 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        NEXT_PUBLIC_DEPLOYMENT_MODE: ${NEXT_PUBLIC_DEPLOYMENT_MODE:-local}
+        NEXT_PUBLIC_LOCAL_UNLOCK_PASSWORD: ${NEXT_PUBLIC_LOCAL_UNLOCK_PASSWORD:-khuloud-founder}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_DEPLOYMENT_MODE: ${NEXT_PUBLIC_DEPLOYMENT_MODE:-local}
+      NEXT_PUBLIC_LOCAL_UNLOCK_PASSWORD: ${NEXT_PUBLIC_LOCAL_UNLOCK_PASSWORD:-khuloud-founder}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
