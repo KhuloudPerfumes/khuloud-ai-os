@@ -24,8 +24,6 @@ services:
         value: https://khuloudperfumes.com
       - key: IMAGE_GENERATION_PROVIDER
         value: auto
-      - key: GEMINI_API_KEY
-        sync: false
       - key: LOCAL_AUTH_USERNAME
         value: founder
       - key: LOCAL_AUTH_PASSWORD
