@@ -50,8 +50,18 @@ export type Message = {
   body: string;
   metadata?: {
     assets?: Asset[];
+    auto_visual_request?: boolean;
+    task_id?: string;
+    queue?: string;
   };
   created_at: string;
+};
+
+export type ChatResponse = {
+  founder_message: Message;
+  bot_messages: Message[];
+  task_id: string | null;
+  approval_id: string | null;
 };
 
 export type Task = {
@@ -128,7 +138,7 @@ export async function wakeBackend(): Promise<HealthStatus> {
   return getHealth(30000);
 }
 
-export async function sendFounderMessage(channelKey: string, body: string) {
+export async function sendFounderMessage(channelKey: string, body: string): Promise<ChatResponse> {
   const response = await fetchWithTimeout(`${API_BASE}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -140,7 +150,7 @@ export async function sendFounderMessage(channelKey: string, body: string) {
   return response.json();
 }
 
-export async function sendDirectBotMessage(channelKey: string, botKey: string, body: string) {
+export async function sendDirectBotMessage(channelKey: string, botKey: string, body: string): Promise<ChatResponse> {
   const response = await fetchWithTimeout(`${API_BASE}/api/chat/direct`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -152,11 +162,11 @@ export async function sendDirectBotMessage(channelKey: string, botKey: string, b
   return response.json();
 }
 
-export async function generateVisualAsset(prompt: string, title = "Campaign concept board") {
+export async function generateVisualAsset(prompt: string, title = "Campaign concept board", channelKey = "founder-command") {
   const response = await fetchWithTimeout(`${API_BASE}/api/assets/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, title, created_by: "creative_director", channel_key: "founder-command" })
+    body: JSON.stringify({ prompt, title, created_by: "creative_director", channel_key: channelKey })
   }, 120000);
   if (!response.ok) {
     throw new Error("Image generation failed");

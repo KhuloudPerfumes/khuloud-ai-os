@@ -39,6 +39,40 @@ COLLABORATION_MAP = {
     "ceo": ["creative_director", "performance_marketing", "shopify_cro"],
 }
 
+VISUAL_GENERATION_TERMS = [
+    "image",
+    "images",
+    "visual",
+    "visuals",
+    "picture",
+    "pictures",
+    "photo",
+    "photos",
+    "render",
+    "renders",
+    "mockup",
+    "mockups",
+    "product board",
+    "campaign board",
+    "poster",
+    "product shot",
+    "ad creative",
+    "creative asset",
+]
+
+VISUAL_ACTION_TERMS = [
+    "generate",
+    "create",
+    "make",
+    "design",
+    "produce",
+    "build",
+    "give me",
+    "i need",
+    "i want",
+    "show me",
+]
+
 
 @dataclass
 class OrchestrationResult:
@@ -124,6 +158,8 @@ class AgentOrchestrator:
                     extra=f"Collaborate with {owner.name}. Stay inside authority: {collaborator.authority_level}.",
                 )
                 messages.append(ChatMessage(channel_key=channel_key, sender_key=collaborator.key, sender_name=collaborator.name, sender_type="bot", body=collaborator_body))
+        if self._requests_visual_generation(text):
+            messages.append(self._create_auto_visual_request(db, channel_key, text))
         db.add_all(messages)
         add_memory(
             db,
@@ -173,7 +209,10 @@ class AgentOrchestrator:
         context = self._memory_context(db, bot, text)
         body = self._operating_response(bot, text, context, extra=f"Direct conversation with founder. Task id: {task.id}.")
         message = ChatMessage(channel_key=channel_key, sender_key=bot.key, sender_name=bot.name, sender_type="bot", body=body)
-        db.add(message)
+        messages = [message]
+        if self._requests_visual_generation(text):
+            messages.append(self._create_auto_visual_request(db, channel_key, text))
+        db.add_all(messages)
         add_memory(
             db,
             scope="direct_bot_activity",
@@ -183,8 +222,9 @@ class AgentOrchestrator:
         )
         self.queue.enqueue("direct_bot_tasks", {"task_id": task.id, "owner_key": bot.key, "approval_needed": approval_needed})
         db.commit()
-        db.refresh(message)
-        return OrchestrationResult(messages=[message], task=task, approval=approval)
+        for outbound in messages:
+            db.refresh(outbound)
+        return OrchestrationResult(messages=messages, task=task, approval=approval)
 
     def crewai_status(self) -> dict:
         try:
@@ -221,6 +261,75 @@ class AgentOrchestrator:
     def _needs_approval(self, text: str) -> bool:
         normalized = text.lower()
         return any(action in normalized for action in DANGEROUS_ACTIONS)
+
+    def _requests_visual_generation(self, text: str) -> bool:
+        normalized = " ".join(text.lower().split())
+        has_visual_subject = any(term in normalized for term in VISUAL_GENERATION_TERMS)
+        has_creation_action = any(term in normalized for term in VISUAL_ACTION_TERMS)
+        return has_visual_subject and has_creation_action
+
+    def _create_auto_visual_request(self, db: Session, channel_key: str, text: str) -> ChatMessage:
+        creative_director = db.query(Bot).filter(Bot.key == "creative_director").one()
+        task = Task(
+            title=f"Auto image generation: {self._task_title(text)}",
+            owner_key="creative_director",
+            objective=(
+                "Automatically detected visual-generation intent from founder message. "
+                f"Create or queue campaign/product visuals from this prompt: {text}"
+            ),
+            status="pending",
+            priority="high",
+            risk="medium",
+            next_step=(
+                "Visual workflow was started automatically from chat. In local mode, generate assets through the image service; "
+                "in free cloud mode, keep the request queued if image services are unavailable."
+            ),
+            approval_needed=False,
+            deadline="Immediate when image service is available",
+            related_channel=channel_key,
+        )
+        db.add(task)
+        db.flush()
+        self.queue.enqueue(
+            "image_generation_requests",
+            {
+                "task_id": task.id,
+                "prompt": text,
+                "requested_by": "ceo_auto_detection",
+                "channel_key": channel_key,
+            },
+        )
+        add_memory(
+            db,
+            scope="approved_creatives",
+            title=f"Auto visual request queued: {self._task_title(text)}",
+            content=(
+                "The founder asked for images/visuals in chat, so the CEO workflow automatically created an image-generation "
+                f"task without requiring the Create Visuals or Queue Image Generation button. Prompt: {text}"
+            ),
+            created_by="ceo",
+        )
+        return ChatMessage(
+            channel_key=channel_key,
+            sender_key="creative_director",
+            sender_name=creative_director.name,
+            sender_type="bot",
+            body=(
+                "Detected image-generation intent. I started the visual workflow automatically, so you do not need to click "
+                "Create Visuals or Queue Image Generation.\n"
+                f"Visual task: {task.id}\n"
+                "Status: Queued for generation through the available image service.\n"
+                "Next step: I will treat follow-up messages in this chat as live creative direction for the same visual request."
+            ),
+            metadata_json=json.dumps(
+                {
+                    "operation": True,
+                    "auto_visual_request": True,
+                    "task_id": task.id,
+                    "queue": "image_generation_requests",
+                }
+            ),
+        )
 
     def _task_title(self, text: str) -> str:
         cleaned = " ".join(text.strip().split())

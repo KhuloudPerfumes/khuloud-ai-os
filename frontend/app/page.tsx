@@ -226,10 +226,22 @@ export default function Home() {
     };
     setData((current) => ({ ...current, messages: [...current.messages, optimisticMessage, routingMessage] }));
     try {
-      if (directMode) {
-        await sendDirectBotMessage(activeChannel, selectedBot, body);
-      } else {
-        await sendFounderMessage(activeChannel, body);
+      const response = directMode
+        ? await sendDirectBotMessage(activeChannel, selectedBot, body)
+        : await sendFounderMessage(activeChannel, body);
+      const shouldGenerateVisual = response.bot_messages.some((message) => message.metadata?.auto_visual_request);
+      if (shouldGenerateVisual) {
+        setGeneratingAsset(true);
+        setOperationStatus("Image request detected. Generating visual boards automatically...");
+        try {
+          await generateVisualAsset(body, body.slice(0, 80) || "Auto-generated visual request", activeChannel);
+          setOperationStatus("Generated visual boards automatically and posted them into chat.");
+        } catch {
+          await queueImageGeneration(body, body.slice(0, 80) || "Auto-queued visual request");
+          setOperationStatus("Image generation was unavailable, so the request was queued automatically.");
+        } finally {
+          setGeneratingAsset(false);
+        }
       }
       await refresh();
     } catch {
@@ -334,7 +346,7 @@ export default function Home() {
       ]
     }));
     try {
-      await generateVisualAsset(prompt, prompt.slice(0, 80) || "Campaign concept board");
+      await generateVisualAsset(prompt, prompt.slice(0, 80) || "Campaign concept board", activeChannel);
       setAssetPrompt("");
       await refresh();
     } finally {
